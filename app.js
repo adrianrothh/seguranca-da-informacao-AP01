@@ -3,7 +3,7 @@ const USERS = [
     id: 1,
     name: "Ana Souza",
     email: "aluno@faculdade.local",
-    password: "123456",
+    passwordHash: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     role: "ALUNO",
     studentId: "202400001"
   },
@@ -11,7 +11,7 @@ const USERS = [
     id: 2,
     name: "Prof. Carlos Lima",
     email: "professor@faculdade.local",
-    password: "123456",
+    passwordHash: "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     role: "PROFESSOR",
     classes: ["5A", "5B"]
   },
@@ -19,12 +19,10 @@ const USERS = [
     id: 3,
     name: "Administrador Geral",
     email: "admin@faculdade.local",
-    password: "admin",
+    passwordHash: "fc15232916c5f9cd96e2cfe3b3e2b45ee10a889e1b0d36b95f5797f92dd8c93c",
     role: "ADMIN"
   }
 ];
-
-const FAKE_API_TOKEN = "TOKEN_SECRETO_DEMO_ABC123_PUBLICO_NO_FRONTEND";
 
 const STORAGE_KEYS = {
   session: "ocorrencias_sessao",
@@ -80,49 +78,40 @@ const INITIAL_OCCURRENCES = [
   }
 ];
 
-const loginView = document.querySelector("#loginView");
-const appView = document.querySelector("#appView");
-const loginForm = document.querySelector("#loginForm");
-const occurrenceForm = document.querySelector("#occurrenceForm");
-const logoutBtn = document.querySelector("#logoutBtn");
-const exportBtn = document.querySelector("#exportBtn");
-const clearLogsBtn = document.querySelector("#clearLogsBtn");
-const resetBtn = document.querySelector("#resetBtn");
-const searchInput = document.querySelector("#search");
-const roleSelect = document.querySelector("#roleSelect");
+const loginView        = document.querySelector("#loginView");
+const appView          = document.querySelector("#appView");
+const loginForm        = document.querySelector("#loginForm");
+const occurrenceForm   = document.querySelector("#occurrenceForm");
+const logoutBtn        = document.querySelector("#logoutBtn");
+const exportBtn        = document.querySelector("#exportBtn");
+const searchInput      = document.querySelector("#search");
 
-const sessionBadge = document.querySelector("#sessionBadge");
-const currentUserName = document.querySelector("#currentUserName");
+const sessionBadge       = document.querySelector("#sessionBadge");
+const currentUserName    = document.querySelector("#currentUserName");
 const currentUserDetails = document.querySelector("#currentUserDetails");
-const occurrencesTable = document.querySelector("#occurrencesTable");
-const auditLog = document.querySelector("#auditLog");
-const totalOccurrences = document.querySelector("#totalOccurrences");
-const criticalOccurrences = document.querySelector("#criticalOccurrences");
-const lastUpdate = document.querySelector("#lastUpdate");
+const occurrencesTable   = document.querySelector("#occurrencesTable");
+const auditLog           = document.querySelector("#auditLog");
+const totalOccurrences   = document.querySelector("#totalOccurrences");
+const criticalOccurrences= document.querySelector("#criticalOccurrences");
+const lastUpdate         = document.querySelector("#lastUpdate");
 
-function boot() {
-  if (!localStorage.getItem(STORAGE_KEYS.occurrences)) {
-    localStorage.setItem(STORAGE_KEYS.occurrences, JSON.stringify(INITIAL_OCCURRENCES));
-  }
 
-  if (!localStorage.getItem(STORAGE_KEYS.audit)) {
-    localStorage.setItem(STORAGE_KEYS.audit, JSON.stringify([
-      {
-        when: new Date().toISOString(),
-        user: "sistema",
-        action: "BASE_INICIAL_CRIADA",
-        detail: "Dados fictícios carregados no localStorage."
-      }
-    ]));
-  }
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
-  const session = getSession();
-
-  if (session) {
-    showApp(session);
-  } else {
-    showLogin();
-  }
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
 }
 
 function getOccurrences() {
@@ -146,7 +135,9 @@ function getSession() {
 }
 
 function saveSession(user) {
-  localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(user));
+  
+  const { passwordHash, ...safeUser } = user;
+  localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(safeUser));
 }
 
 function writeLog(action, detail) {
@@ -163,6 +154,31 @@ function writeLog(action, detail) {
 
   saveAuditLogs(logs);
 }
+
+function boot() {
+  if (!localStorage.getItem(STORAGE_KEYS.occurrences)) {
+    localStorage.setItem(STORAGE_KEYS.occurrences, JSON.stringify(INITIAL_OCCURRENCES));
+  }
+
+  if (!localStorage.getItem(STORAGE_KEYS.audit)) {
+    localStorage.setItem(STORAGE_KEYS.audit, JSON.stringify([
+      {
+        when: new Date().toISOString(),
+        user: "sistema",
+        action: "BASE_INICIAL_CRIADA",
+        detail: "Dados fictícios carregados no localStorage."
+      }
+    ]));
+  }
+
+  const session = getSession();
+  if (session) {
+    showApp(session);
+  } else {
+    showLogin();
+  }
+}
+
 
 function showLogin() {
   loginView.classList.remove("hidden");
@@ -182,13 +198,36 @@ function showApp(user) {
 
   currentUserName.textContent = user.name;
   currentUserDetails.textContent = `${user.email} | Perfil: ${user.role}`;
-  roleSelect.value = user.role;
+
+  applyRoleVisibility(user.role);
 
   render();
 }
 
-function login(email, password) {
-  const user = USERS.find((item) => item.email === email && item.password === password);
+function applyRoleVisibility(role) {
+  const logSection = document.querySelector("#logSection");
+  if (logSection) {
+    logSection.classList.toggle("hidden", role !== "ADMIN");
+  }
+
+  if (exportBtn) {
+    exportBtn.classList.toggle("hidden", role !== "ADMIN");
+  }
+
+  const occurrenceFormSection = document.querySelector("#occurrenceFormSection");
+  if (occurrenceFormSection) {
+    occurrenceFormSection.classList.toggle("hidden", role === "ALUNO");
+  }
+
+  const internalNoteSection = document.querySelector("#internalNoteSection");
+  if (internalNoteSection) {
+    internalNoteSection.classList.toggle("hidden", role === "ALUNO");
+  }
+}
+
+async function login(email, password) {
+  const hash = await hashPassword(password);
+  const user = USERS.find(item => item.email === email && item.passwordHash === hash);
 
   if (!user) {
     alert("Usuário ou senha inválidos.");
@@ -198,7 +237,7 @@ function login(email, password) {
 
   saveSession(user);
   writeLog("LOGIN_OK", `Usuário ${user.email} entrou no sistema.`);
-  showApp(user);
+  showApp(getSession());
 }
 
 function logout() {
@@ -208,17 +247,34 @@ function logout() {
   showLogin();
 }
 
-function changeRole(newRole) {
-  const session = getSession();
+function validateOccurrenceForm(data) {
+  const errors = [];
 
-  if (!session) {
-    return;
+  if (!data.studentName || data.studentName.trim().length < 3) {
+    errors.push("Nome do aluno deve ter ao menos 3 caracteres.");
   }
 
-  session.role = newRole;
-  saveSession(session);
-  writeLog("PERFIL_ALTERADO", `Perfil ativo alterado manualmente para ${newRole}.`);
-  showApp(session);
+  if (!/^\d{6,12}$/.test(data.studentId)) {
+    errors.push("Matrícula deve conter apenas números (6 a 12 dígitos).");
+  }
+
+  if (!/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(data.studentCpf)) {
+    errors.push("CPF deve estar no formato 000.000.000-00.");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.studentEmail)) {
+    errors.push("E-mail inválido.");
+  }
+
+  if (!/^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(data.studentPhone)) {
+    errors.push("Telefone deve estar no formato (00) 00000-0000.");
+  }
+
+  if (!data.description || data.description.trim().length < 10) {
+    errors.push("Descrição deve ter ao menos 10 caracteres.");
+  }
+
+  return errors;
 }
 
 function createOccurrence(event) {
@@ -226,20 +282,40 @@ function createOccurrence(event) {
 
   const session = getSession();
 
+  if (!session || session.role === "ALUNO") {
+    alert("Apenas professores e administradores podem registrar ocorrências.");
+    return;
+  }
+
+  const data = {
+    studentName:  document.querySelector("#studentName").value.trim(),
+    studentId:    document.querySelector("#studentId").value.trim(),
+    studentCpf:   document.querySelector("#studentCpf").value.trim(),
+    studentEmail: document.querySelector("#studentEmail").value.trim(),
+    studentPhone: document.querySelector("#studentPhone").value.trim(),
+    category:     document.querySelector("#category").value,
+    priority:     document.querySelector("#priority").value,
+    description:  document.querySelector("#description").value.trim(),
+    internalNote: document.querySelector("#internalNote").value.trim(),
+    privacyAck:   document.querySelector("#privacyAck").checked
+  };
+
+  const errors = validateOccurrenceForm(data);
+  if (errors.length > 0) {
+    alert("Corrija os erros antes de salvar:\n\n" + errors.join("\n"));
+    return;
+  }
+
+  if (!data.privacyAck) {
+    alert("Confirme que pode registrar estes dados antes de salvar.");
+    return;
+  }
+
   const occurrence = {
     id: `OC-${Math.floor(Math.random() * 9000) + 1000}`,
-    studentName: document.querySelector("#studentName").value,
-    studentId: document.querySelector("#studentId").value,
-    studentCpf: document.querySelector("#studentCpf").value,
-    studentEmail: document.querySelector("#studentEmail").value,
-    studentPhone: document.querySelector("#studentPhone").value,
-    category: document.querySelector("#category").value,
-    priority: document.querySelector("#priority").value,
-    description: document.querySelector("#description").value,
-    internalNote: document.querySelector("#internalNote").value,
-    privacyAck: document.querySelector("#privacyAck").checked,
+    ...data,
     status: "Aberta",
-    createdBy: session ? session.email : "desconhecido",
+    createdBy: session.email,
     createdAt: new Date().toISOString()
   };
 
@@ -249,7 +325,7 @@ function createOccurrence(event) {
 
   writeLog(
     "OCORRENCIA_CRIADA",
-    `Criada ocorrência ${occurrence.id} para ${occurrence.studentName} / ${occurrence.studentCpf}. Descrição: ${occurrence.description}`
+    `Criada ocorrência ${occurrence.id} para ${occurrence.studentName} / CPF informado pelo registrante.`
   );
 
   occurrenceForm.reset();
@@ -257,129 +333,146 @@ function createOccurrence(event) {
 }
 
 function deleteOccurrence(id) {
+  const session = getSession();
+
+  if (!session || session.role === "ALUNO") {
+    alert("Você não tem permissão para excluir ocorrências.");
+    return;
+  }
+
   const occurrences = getOccurrences();
-  const occurrence = occurrences.find((item) => item.id === id);
-  const updated = occurrences.filter((item) => item.id !== id);
+  const occurrence = occurrences.find(item => item.id === id);
+  const updated = occurrences.filter(item => item.id !== id);
 
   saveOccurrences(updated);
-  writeLog("OCORRENCIA_EXCLUIDA", `Ocorrência ${id} excluída. Registro: ${JSON.stringify(occurrence)}`);
+  writeLog("OCORRENCIA_EXCLUIDA", `Ocorrência ${id} excluída por ${session.email}.`);
   render();
 }
 
 function changeStatus(id, status) {
-  const occurrences = getOccurrences();
-  const occurrence = occurrences.find((item) => item.id === id);
+  const session = getSession();
 
-  if (!occurrence) {
+  if (!session || session.role === "ALUNO") {
+    alert("Você não tem permissão para alterar o status de ocorrências.");
     return;
   }
+
+  const occurrences = getOccurrences();
+  const occurrence = occurrences.find(item => item.id === id);
+
+  if (!occurrence) return;
 
   occurrence.status = status;
   occurrence.updatedAt = new Date().toISOString();
 
   saveOccurrences(occurrences);
-  writeLog("STATUS_ALTERADO", `Ocorrência ${id} alterada para ${status}.`);
+  writeLog("STATUS_ALTERADO", `Ocorrência ${id} alterada para ${status} por ${session.email}.`);
   render();
 }
 
 function exportEverything() {
+  const session = getSession();
+
+  if (!session || session.role !== "ADMIN") {
+    alert("Apenas administradores podem exportar dados.");
+    return;
+  }
+
   const payload = {
     exportedAt: new Date().toISOString(),
-    exportedBy: getSession(),
-    token: FAKE_API_TOKEN,
-    users: USERS,
-    occurrences: getOccurrences(),
-    audit: getAuditLogs(),
-    localStorageCopy: { ...localStorage }
+    exportedBy: { name: session.name, email: session.email, role: session.role },
+    occurrences: getOccurrences()
   };
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/json"
-  });
-
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
 
   anchor.href = url;
-  anchor.download = "backup-completo-ocorrencias.json";
+  anchor.download = "ocorrencias-export.json";
   anchor.click();
 
   URL.revokeObjectURL(url);
-
-  writeLog("EXPORTACAO_TOTAL", "Usuário exportou todos os dados do sistema.");
-}
-
-function clearLogs() {
-  saveAuditLogs([]);
-  render();
-}
-
-function resetData() {
-  localStorage.setItem(STORAGE_KEYS.occurrences, JSON.stringify(INITIAL_OCCURRENCES));
-  localStorage.setItem(STORAGE_KEYS.audit, JSON.stringify([]));
-  localStorage.removeItem(STORAGE_KEYS.session);
-  boot();
+  writeLog("EXPORTACAO", "Administrador exportou os dados de ocorrências.");
 }
 
 function render() {
+  const session = getSession();
+  const role = session ? session.role : null;
   const term = searchInput.value.toLowerCase();
-  const occurrences = getOccurrences();
+  let occurrences = getOccurrences();
 
-  const filtered = occurrences.filter((item) => {
+  if (role === "ALUNO" && session.studentId) {
+    occurrences = occurrences.filter(item => item.studentId === session.studentId);
+  }
+
+  const filtered = occurrences.filter(item => {
     const content = JSON.stringify(item).toLowerCase();
     return content.includes(term);
   });
 
   totalOccurrences.textContent = occurrences.length;
-  criticalOccurrences.textContent = occurrences.filter((item) => item.priority === "Crítica").length;
+  criticalOccurrences.textContent = occurrences.filter(item => item.priority === "Crítica").length;
   lastUpdate.textContent = `Atualizado em ${new Date().toLocaleTimeString("pt-BR")}`;
 
-  occurrencesTable.innerHTML = filtered.map((item) => `
-    <tr>
-      <td>
-        <strong>${item.studentName}</strong><br />
-        <span class="muted-text">${item.studentId}</span>
-      </td>
-      <td>${item.studentCpf}</td>
-      <td>
-        ${item.studentEmail}<br />
-        ${item.studentPhone}
-      </td>
-      <td>${item.category}</td>
-      <td><span class="priority ${item.priority}">${item.priority}</span></td>
-      <td>${item.status}</td>
-      <td>
-        <strong>Descrição:</strong> ${item.description}<br />
-        <strong>Obs. interna:</strong> ${item.internalNote}
-      </td>
-      <td>
-        <div class="row-actions">
-          <button class="btn secondary" onclick="changeStatus('${item.id}', 'Em análise')">Em análise</button>
-          <button class="btn secondary" onclick="changeStatus('${item.id}', 'Resolvida')">Resolver</button>
-          <button class="btn danger" onclick="deleteOccurrence('${item.id}')">Excluir</button>
+  occurrencesTable.innerHTML = filtered.map(item => {
+    const canAct = role === "ADMIN" || role === "PROFESSOR";
+    const canSeeInternal = role === "ADMIN" || role === "PROFESSOR";
+
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(item.studentName)}</strong><br />
+          <span class="muted-text">${escapeHtml(item.studentId)}</span>
+        </td>
+        <td>${escapeHtml(item.studentCpf)}</td>
+        <td>
+          ${escapeHtml(item.studentEmail)}<br />
+          ${escapeHtml(item.studentPhone)}
+        </td>
+        <td>${escapeHtml(item.category)}</td>
+        <td><span class="priority ${escapeHtml(item.priority)}">${escapeHtml(item.priority)}</span></td>
+        <td>${escapeHtml(item.status)}</td>
+        <td>
+          <strong>Descrição:</strong> ${escapeHtml(item.description)}<br />
+          ${canSeeInternal ? `<strong>Obs. interna:</strong> ${escapeHtml(item.internalNote)}` : ""}
+        </td>
+        <td>
+          ${canAct ? `
+            <div class="row-actions">
+              <button class="btn secondary" onclick="changeStatus('${escapeHtml(item.id)}', 'Em análise')">Em análise</button>
+              <button class="btn secondary" onclick="changeStatus('${escapeHtml(item.id)}', 'Resolvida')">Resolver</button>
+              <button class="btn danger" onclick="deleteOccurrence('${escapeHtml(item.id)}')">Excluir</button>
+            </div>
+          ` : '<span class="muted-text">—</span>'}
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  const logSection = document.querySelector("#logSection");
+  if (logSection) {
+    logSection.classList.toggle("hidden", role !== "ADMIN");
+  }
+
+  if (role === "ADMIN") {
+    const logs = getAuditLogs();
+    if (logs.length === 0) {
+      auditLog.innerHTML = `<div class="notice">Nenhum log registrado.</div>`;
+    } else {
+      auditLog.innerHTML = logs.map(log => `
+        <div class="log-item">
+          <strong>${escapeHtml(log.when)}</strong><br />
+          usuário=${escapeHtml(log.user || "—")} | perfil=${escapeHtml(log.role || "—")} | ação=${escapeHtml(log.action)}<br />
+          detalhe=${escapeHtml(log.detail)}
         </div>
-      </td>
-    </tr>
-  `).join("");
-
-  const logs = getAuditLogs();
-
-  if (logs.length === 0) {
-    auditLog.innerHTML = `<div class="notice">Nenhum log registrado.</div>`;
-  } else {
-    auditLog.innerHTML = logs.map((log) => `
-      <div class="log-item">
-        <strong>${log.when}</strong><br />
-        usuário=${log.user || "—"} | perfil=${log.role || "—"} | ação=${log.action}<br />
-        detalhe=${log.detail}
-      </div>
-    `).join("");
+      `).join("");
+    }
   }
 }
 
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
-
   login(
     document.querySelector("#email").value,
     document.querySelector("#password").value
@@ -388,11 +481,12 @@ loginForm.addEventListener("submit", (event) => {
 
 occurrenceForm.addEventListener("submit", createOccurrence);
 logoutBtn.addEventListener("click", logout);
-exportBtn.addEventListener("click", exportEverything);
-clearLogsBtn.addEventListener("click", clearLogs);
-resetBtn.addEventListener("click", resetData);
+
+if (exportBtn) {
+  exportBtn.addEventListener("click", exportEverything);
+}
+
 searchInput.addEventListener("input", render);
-roleSelect.addEventListener("change", (event) => changeRole(event.target.value));
 
 window.deleteOccurrence = deleteOccurrence;
 window.changeStatus = changeStatus;
