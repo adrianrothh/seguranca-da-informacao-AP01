@@ -1,4 +1,4 @@
-# Sistema de Ocorrências Acadêmicas — Protótipo Didático
+# Sistema de Ocorrências Acadêmicas — Protótipo Didático 
 
 Protótipo web desenvolvido para atividade prática da disciplina **Segurança da Informação**.
 
