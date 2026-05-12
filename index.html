@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sistema de Ocorrências Acadêmicas — versão inicial</title>
+  <title>Sistema de Ocorrências Acadêmicas</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <header class="topbar">
     <div>
@@ -21,24 +23,28 @@
   </header>
 
   <main class="layout">
-        <section id="loginView" class="card login-card">
+
+    <section id="loginView" class="card login-card">
       <div>
         <p class="eyebrow">Acesso</p>
         <h2>Entrar no sistema</h2>
         <p class="muted-text">
+
           Use um dos usuários de demonstração para acessar o painel.
         </p>
       </div>
 
       <form id="loginForm" class="form-grid">
         <label>
+
           E-mail
-          <input id="email" type="email" value="professor@faculdade.local" autocomplete="email" />
+          <input id="email" type="email" autocomplete="email" required />
         </label>
 
         <label>
+
           Senha
-          <input id="password" type="password" value="123456" autocomplete="current-password" />
+          <input id="password" type="password" autocomplete="current-password" required />
         </label>
 
         <button class="btn primary" type="submit">Entrar</button>
@@ -55,67 +61,70 @@
     </section>
 
     <section id="appView" class="hidden">
+
       <section class="grid two">
         <article class="card">
           <p class="eyebrow">Usuário atual</p>
           <h2 id="currentUserName">—</h2>
           <p id="currentUserDetails" class="muted-text">—</p>
 
-          <div class="role-switch">
-            <label>
-              Perfil ativo
-              <select id="roleSelect">
-                <option value="ALUNO">Aluno</option>
-                <option value="PROFESSOR">Professor</option>
-                <option value="ADMIN">Administrador</option>
-              </select>
-            </label>
-          </div>
         </article>
 
         <article class="card">
           <p class="eyebrow">Ações rápidas</p>
           <h2>Ferramentas do painel</h2>
           <div class="actions">
-            <button id="exportBtn" class="btn secondary" type="button">Exportar todos os dados</button>
-            <button id="clearLogsBtn" class="btn secondary" type="button">Limpar logs</button>
-            <button id="resetBtn" class="btn danger" type="button">Restaurar dados iniciais</button>
+
+            <button id="exportBtn" class="btn secondary hidden" type="button">Exportar ocorrências</button>
           </div>
+          <p class="muted-text" style="margin-top: 0.75rem; font-size: 0.85rem;">
+
+            ⚠️ Este sistema é um protótipo didático. Não insira dados reais.
+          </p>
         </article>
       </section>
 
-      <section class="grid two">
+      <section id="occurrenceFormSection" class="grid two">
         <article class="card">
           <p class="eyebrow">Nova ocorrência</p>
           <h2>Registrar ocorrência acadêmica</h2>
 
           <form id="occurrenceForm" class="form-grid">
             <label>
-              Nome do aluno
-              <input id="studentName" type="text" placeholder="Ex.: João da Silva" />
+
+              Nome do aluno *
+              <input id="studentName" type="text" placeholder="Ex.: João da Silva" maxlength="100" required />
             </label>
 
             <label>
-              Matrícula
-              <input id="studentId" type="text" placeholder="Ex.: 202400123" />
+
+              Matrícula *
+              <input id="studentId" type="text" placeholder="Ex.: 202400123" pattern="\d{6,12}" maxlength="12"
+                title="Apenas números, 6 a 12 dígitos" required />
             </label>
 
             <label>
-              CPF
-              <input id="studentCpf" type="text" placeholder="Ex.: 000.000.000-00" />
+
+              CPF *
+              <input id="studentCpf" type="text" placeholder="000.000.000-00" pattern="\d{3}\.\d{3}\.\d{3}-\d{2}"
+                maxlength="14" title="Formato: 000.000.000-00" required />
             </label>
 
             <label>
-              E-mail pessoal
-              <input id="studentEmail" type="email" placeholder="aluno@email.com" />
+
+              E-mail pessoal *
+              <input id="studentEmail" type="email" placeholder="aluno@email.com" maxlength="100" required />
             </label>
 
             <label>
-              Telefone
-              <input id="studentPhone" type="text" placeholder="(00) 00000-0000" />
+
+              Telefone *
+              <input id="studentPhone" type="text" placeholder="(00) 00000-0000" pattern="\(\d{2}\)\s\d{4,5}-\d{4}"
+                maxlength="15" title="Formato: (00) 00000-0000" required />
             </label>
 
             <label>
+
               Tipo de ocorrência
               <select id="category">
                 <option>Nota</option>
@@ -127,6 +136,7 @@
             </label>
 
             <label>
+
               Prioridade
               <select id="priority">
                 <option>Baixa</option>
@@ -137,18 +147,23 @@
             </label>
 
             <label class="span-2">
-              Descrição da ocorrência
-              <textarea id="description" rows="5" placeholder="Descreva o ocorrido..."></textarea>
+
+              Descrição da ocorrência *
+              <textarea id="description" rows="5" placeholder="Descreva o ocorrido (mínimo 10 caracteres)..."
+                maxlength="2000" required></textarea>
             </label>
 
-            <label class="span-2">
+            <label id="internalNoteSection" class="span-2">
+
               Observação interna
-              <textarea id="internalNote" rows="3" placeholder="Informação visível no painel..."></textarea>
+              <textarea id="internalNote" rows="3" placeholder="Informação visível apenas para professor e admin..."
+                maxlength="1000"></textarea>
             </label>
 
             <label class="check span-2">
-              <input id="privacyAck" type="checkbox" />
-              Confirmo que posso registrar estes dados.
+              <input id="privacyAck" type="checkbox" required />
+
+              Confirmo que estou autorizado a registrar estes dados.
             </label>
 
             <button class="btn primary span-2" type="submit">Salvar ocorrência</button>
@@ -160,6 +175,7 @@
           <h2>Pesquisar registros</h2>
 
           <label>
+
             Termo de busca
             <input id="search" type="search" placeholder="Nome, matrícula, CPF, e-mail ou texto..." />
           </label>
@@ -176,7 +192,8 @@
           </div>
 
           <div class="notice">
-            A busca percorre todos os campos cadastrados e todos os perfis acessam a mesma base.
+
+            Alunos visualizam apenas suas próprias ocorrências. Professores e administradores visualizam todas.
           </div>
         </article>
       </section>
@@ -209,26 +226,30 @@
         </div>
       </section>
 
-      <section class="card">
+
+      <section id="logSection" class="card hidden">
         <div class="section-header">
           <div>
             <p class="eyebrow">Auditoria</p>
             <h2>Logs do sistema</h2>
           </div>
-          <span class="badge muted">armazenamento local</span>
+          <span class="badge muted">visível apenas para administrador</span>
         </div>
 
         <div id="auditLog" class="log-list"></div>
       </section>
+
     </section>
   </main>
 
   <footer class="footer">
     <p>
-      Protótipo estático para atividade prática. Publicável em GitHub Pages.
+
+      Protótipo didático para atividade prática — Segurança da Informação. Não utilize dados reais.
     </p>
   </footer>
 
   <script src="app.js"></script>
 </body>
+
 </html>
